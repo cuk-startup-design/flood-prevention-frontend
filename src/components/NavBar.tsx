@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { clsx } from 'clsx'
 
 const allNavItems = [
+  { href: '/home', icon: '🏠', label: '홈' },
   { href: '/map', icon: '🗺', label: '지도' },
   { href: '/report/new', icon: '📝', label: '신고하기' },
   { href: '/report/manage', icon: '🎉', label: '신고 관리' },
@@ -13,7 +14,7 @@ const allNavItems = [
   { href: '/mypage', icon: '👤', label: '마이페이지' },
 ]
 
-const bottomItems = ['/map', '/report/new']
+const bottomItems = ['/map', '/home', '/report/new']
 const mainNavItems = allNavItems.filter((item) =>
   bottomItems.includes(item.href)
 )
