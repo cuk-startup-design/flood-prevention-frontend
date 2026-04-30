@@ -30,16 +30,22 @@ export default function ReportCompleteModal({ onClose }: Props) {
             <span className="text-green-500 text-3xl">✓</span>
           </div>
           <div className="text-center">
-            <p className="font-bold text-lg text-gray-900">신고가 접수되었습니다</p>
+            <p className="font-bold text-lg text-gray-900">
+              신고가 접수되었습니다
+            </p>
             <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-              담당 공무원이 배정되어<br />즉시 처리를 시작합니다
+              담당 공무원이 배정되어
+              <br />
+              즉시 처리를 시작합니다
             </p>
           </div>
         </div>
 
         {/* 적립 내역 */}
         <div className="mx-4 mb-5 rounded-xl bg-gray-50 px-4 py-3 flex flex-col gap-2.5">
-          <p className="text-xs font-semibold text-gray-500">서울페이 적립 내역</p>
+          <p className="text-xs font-semibold text-gray-500">
+            서울페이 적립 내역
+          </p>
           <div className="flex justify-between text-sm">
             <span className="text-gray-700">신고 기본</span>
             <span className="font-bold text-blue-600">+500P</span>
@@ -70,7 +76,10 @@ export default function ReportCompleteModal({ onClose }: Props) {
           </button>
           <button
             type="button"
-            onClick={() => { onClose(); router.push('/mypage') }}
+            onClick={() => {
+              onClose()
+              router.push('/mypage')
+            }}
             className="w-full text-sm text-blue-600 font-medium py-1"
           >
             마이페이지에서 확인
