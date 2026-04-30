@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import Script from 'next/script'
 
 declare global {
@@ -86,6 +86,10 @@ export default function MapPage() {
       })
     })
   }
+
+  useEffect(() => {
+    if (window.kakao?.maps) initMap()
+  }, [])
 
   return (
     <div className="relative flex flex-col">
