@@ -7,14 +7,13 @@ import { clsx } from 'clsx'
 
 const allNavItems = [
   { href: '/map', icon: '🗺', label: '지도' },
-  { href: '/home', icon: '📸', label: '신고홈' },
-  { href: '/camera', icon: '📷', label: '카메라' },
-  { href: '/checklist', icon: '✅', label: '체크리스트' },
   { href: '/report/new', icon: '📝', label: '신고하기' },
   { href: '/report/manage', icon: '🎉', label: '신고 관리' },
+  { href: '/alerts', icon: '🔔', label: '알림' },
+  { href: '/mypage', icon: '👤', label: '마이페이지' },
 ]
 
-const bottomItems = ['/map', '/home']
+const bottomItems = ['/map', '/report/new']
 const mainNavItems = allNavItems.filter((item) =>
   bottomItems.includes(item.href)
 )

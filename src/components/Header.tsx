@@ -6,11 +6,8 @@ import { useState } from 'react'
 import AlertModal from './AlertModal'
 
 const pageTitles: Record<string, string> = {
-  '/home': '신고홈',
   '/map': '지도',
   '/alerts': '알림',
-  '/camera': '카메라',
-  '/checklist': '체크리스트',
   '/report/new': '신고하기',
   '/report/manage': '신고 관리',
   '/mypage': '마이페이지',
