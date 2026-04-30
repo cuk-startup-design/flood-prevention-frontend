@@ -1,53 +1,16 @@
 'use client'
 
 import { useRef, useState } from 'react'
-
-interface PhotoData {
-  url: string
-  timestamp: string
-  lat: number | null
-  lng: number | null
-  gpsLoading: boolean
-}
+import PhotoPreviewModal from '@/components/PhotoPreviewModal'
 
 export default function ReportNewPage() {
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
-  const [photo, setPhoto] = useState<PhotoData | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
-
-    const now = new Date()
-    const timestamp = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
-
-    setPhoto({
-      url: URL.createObjectURL(file),
-      timestamp,
-      lat: null,
-      lng: null,
-      gpsLoading: true,
-    })
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPhoto((prev) =>
-          prev
-            ? {
-                ...prev,
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                gpsLoading: false,
-              }
-            : prev
-        )
-      },
-      () => {
-        setPhoto((prev) => (prev ? { ...prev, gpsLoading: false } : prev))
-      },
-      { timeout: 10000 }
-    )
+    if (file) setSelectedFile(file)
   }
 
   return (
@@ -56,12 +19,8 @@ export default function ReportNewPage() {
       <div className="bg-blue-500 rounded-2xl p-5 text-white flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <span className="text-3xl">📷</span>
-          <p className="font-bold text-lg leading-snug">
-            막힌 하수구, 지금 신고하세요
-          </p>
-          <p className="text-sm text-blue-100">
-            사진 + 체크리스트로 3초 완료 · +500P
-          </p>
+          <p className="font-bold text-lg leading-snug">막힌 하수구, 지금 신고하세요</p>
+          <p className="text-sm text-blue-100">사진 + 체크리스트로 3초 완료 · +500P</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -84,9 +43,7 @@ export default function ReportNewPage() {
       {/* 위치 정보 */}
       <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex flex-col gap-1">
         <p className="text-sm text-gray-500">📍 강남구 역삼동</p>
-        <p className="font-semibold text-sm text-gray-900">
-          주변 미처리 하수구 12개 발견
-        </p>
+        <p className="font-semibold text-sm text-gray-900">주변 미처리 하수구 12개 발견</p>
       </div>
 
       {/* 신고 절차 */}
@@ -94,21 +51,10 @@ export default function ReportNewPage() {
         <p className="font-semibold text-sm text-gray-700">신고 절차</p>
         {[
           { step: 1, title: '사진 촬영', desc: 'GPS + 타임스탬프 자동 기록' },
-          {
-            step: 2,
-            title: '상태 체크리스트',
-            desc: '막힘 / 이물질 / 악취 상태 선택',
-          },
-          {
-            step: 3,
-            title: '신고 완료 + 서울페이 적립',
-            desc: '담당 공무원 즉시 배정',
-          },
+          { step: 2, title: '상태 체크리스트', desc: '막힘 / 이물질 / 악취 상태 선택' },
+          { step: 3, title: '신고 완료 + 서울페이 적립', desc: '담당 공무원 즉시 배정' },
         ].map(({ step, title, desc }) => (
-          <div
-            key={step}
-            className="flex items-start gap-3 bg-white rounded-2xl border border-gray-100 px-4 py-3"
-          >
+          <div key={step} className="flex items-start gap-3 bg-white rounded-2xl border border-gray-100 px-4 py-3">
             <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
               {step}
             </span>
@@ -121,76 +67,15 @@ export default function ReportNewPage() {
       </div>
 
       {/* 숨겨진 input */}
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleFile}
-      />
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFile}
-      />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+      <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
 
-      {/* 풀스크린 사진 미리보기 모달 */}
-      {photo && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
-          {/* 상단 바 */}
-          <div className="flex items-center justify-between px-4 py-3 shrink-0">
-            <button
-              type="button"
-              onClick={() => setPhoto(null)}
-              className="text-white text-sm font-medium"
-            >
-              ← 다시 선택
-            </button>
-            <span className="text-white text-sm font-semibold">사진 확인</span>
-            <div className="w-16" />
-          </div>
-
-          {/* 사진 */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.url}
-              alt="촬영된 사진"
-              className="w-full h-full object-contain"
-            />
-          </div>
-
-          {/* 하단 정보 + 버튼 */}
-          <div className="shrink-0 bg-black/80 px-4 pt-4 pb-8 flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5 text-sm">
-              <div className="flex items-center gap-2 text-gray-300">
-                <span>🕐</span>
-                <span>{photo.timestamp}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300">
-                <span>📍</span>
-                {photo.gpsLoading ? (
-                  <span className="text-gray-400">GPS 수신 중...</span>
-                ) : photo.lat !== null ? (
-                  <span>
-                    {photo.lat.toFixed(6)}, {photo.lng!.toFixed(6)}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">위치 정보 없음</span>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="w-full bg-blue-500 text-white font-semibold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors"
-            >
-              다음 단계로
-            </button>
-          </div>
-        </div>
+      {/* 풀스크린 미리보기 모달 */}
+      {selectedFile && (
+        <PhotoPreviewModal
+          file={selectedFile}
+          onClose={() => setSelectedFile(null)}
+        />
       )}
     </div>
   )
