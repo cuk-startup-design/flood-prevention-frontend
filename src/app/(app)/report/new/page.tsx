@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import PhotoPreviewModal from '@/components/PhotoPreviewModal'
+import PhotoPreviewModal from './_components/PhotoPreviewModal'
 
 export default function ReportNewPage() {
   const cameraInputRef = useRef<HTMLInputElement>(null)

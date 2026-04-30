@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ReportCompleteModal from './ReportCompleteModal'
 
 interface Props {
   file: File
@@ -16,6 +17,7 @@ export default function PhotoPreviewModal({ file, onClose }: Props) {
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
   const [gpsLoading, setGpsLoading] = useState(true)
+  const [showComplete, setShowComplete] = useState(false)
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -67,11 +69,16 @@ export default function PhotoPreviewModal({ file, onClose }: Props) {
         </div>
         <button
           type="button"
+          onClick={() => setShowComplete(true)}
           className="w-full bg-blue-500 text-white font-semibold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors"
         >
           다음 단계로
         </button>
       </div>
+
+      {showComplete && (
+        <ReportCompleteModal onClose={onClose} />
+      )}
     </div>
   )
 }
