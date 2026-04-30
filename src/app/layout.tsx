@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'AI 흡연 감지 시스템',
-  description: 'AI 기반 실시간 흡연 감지 모니터링 시스템',
+  title: '홍수 예방 시스템',
+  description: '홍수 예방 모니터링 시스템',
 }
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   )
 }
