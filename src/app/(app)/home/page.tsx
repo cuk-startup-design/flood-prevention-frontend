@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import WeatherCharacter from './_components/WeatherCharacter'
 import BackgroundScene from './_components/BackgroundScene'
 
@@ -14,7 +14,35 @@ const riskConfig: Record<RiskLevel, { label: string; sub: string; color: string 
 
 export default function HomePage() {
   const [risk, setRisk] = useState<RiskLevel>('low')
+  const [stationInfo, setStationInfo] = useState<{ name: string; gu: string; rainfall: number } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [gpsError, setGpsError] = useState(false)
   const config = riskConfig[risk]
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords
+          const res = await fetch(`/api/rainfall?lat=${latitude}&lng=${longitude}`)
+          const data = await res.json()
+          if (data.risk) {
+            setRisk(data.risk)
+            setStationInfo({ name: data.stationName, gu: data.guName, rainfall: data.rainfall })
+          }
+        } catch {
+          // API 실패 시 기본값(low) 유지
+        } finally {
+          setLoading(false)
+        }
+      },
+      () => {
+        setGpsError(true)
+        setLoading(false)
+      },
+      { timeout: 8000 }
+    )
+  }, [])
 
   return (
     <div className="relative flex flex-col items-center px-4 pt-10 gap-6 overflow-hidden" style={{ minHeight: 'calc(100dvh - 92px)' }}>
@@ -24,11 +52,25 @@ export default function HomePage() {
         <WeatherCharacter risk={risk} />
 
         <div className="text-center">
-          <p className={`font-bold text-2xl ${config.color}`}>{config.label}</p>
-          <p className="text-sm text-gray-500 mt-1">{config.sub}</p>
+          {loading ? (
+            <p className="text-gray-400 text-sm">위치 및 강우량 확인 중...</p>
+          ) : (
+            <>
+              <p className={`font-bold text-2xl ${config.color}`}>{config.label}</p>
+              <p className="text-sm text-gray-500 mt-1">{config.sub}</p>
+              {stationInfo && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {stationInfo.gu} · {stationInfo.name} 관측소 · 10분 강우량 {stationInfo.rainfall}mm
+                </p>
+              )}
+              {gpsError && (
+                <p className="text-xs text-gray-400 mt-1">위치 정보를 가져올 수 없어 기본값으로 표시됩니다</p>
+              )}
+            </>
+          )}
         </div>
 
-        {/* 위험도 전환 (테스트용) */}
+        {/* 위험도 수동 전환 (테스트용) */}
         <div className="flex gap-2">
           {(['low', 'medium', 'high'] as RiskLevel[]).map((level) => (
             <button

@@ -12,32 +12,32 @@ declare global {
 
 type RiskLevel = 'high' | 'medium' | 'low'
 
-const districts: { name: string; lat: number; lng: number; risk: RiskLevel }[] = [
-  { name: '강남구', lat: 37.5172, lng: 127.0473, risk: 'medium' },
-  { name: '강동구', lat: 37.5301, lng: 127.1238, risk: 'high' },
-  { name: '강북구', lat: 37.6396, lng: 127.0257, risk: 'low' },
-  { name: '강서구', lat: 37.5509, lng: 126.8495, risk: 'high' },
-  { name: '관악구', lat: 37.4784, lng: 126.9516, risk: 'medium' },
-  { name: '광진구', lat: 37.5384, lng: 127.0823, risk: 'high' },
-  { name: '구로구', lat: 37.4955, lng: 126.8875, risk: 'medium' },
-  { name: '금천구', lat: 37.4568, lng: 126.8955, risk: 'low' },
-  { name: '노원구', lat: 37.6544, lng: 127.0563, risk: 'low' },
-  { name: '도봉구', lat: 37.6688, lng: 127.0471, risk: 'low' },
-  { name: '동대문구', lat: 37.5744, lng: 127.0396, risk: 'medium' },
-  { name: '동작구', lat: 37.5124, lng: 126.9393, risk: 'medium' },
-  { name: '마포구', lat: 37.5637, lng: 126.9084, risk: 'high' },
-  { name: '서대문구', lat: 37.5791, lng: 126.9368, risk: 'low' },
-  { name: '서초구', lat: 37.4836, lng: 127.0327, risk: 'medium' },
-  { name: '성동구', lat: 37.5633, lng: 127.0371, risk: 'high' },
-  { name: '성북구', lat: 37.5894, lng: 127.0167, risk: 'low' },
-  { name: '송파구', lat: 37.5145, lng: 127.1059, risk: 'high' },
-  { name: '양천구', lat: 37.517, lng: 126.8664, risk: 'high' },
-  { name: '영등포구', lat: 37.5264, lng: 126.8963, risk: 'high' },
-  { name: '용산구', lat: 37.5311, lng: 126.981, risk: 'medium' },
-  { name: '은평구', lat: 37.6026, lng: 126.9291, risk: 'low' },
-  { name: '종로구', lat: 37.5735, lng: 126.979, risk: 'low' },
-  { name: '중구', lat: 37.564, lng: 126.9975, risk: 'medium' },
-  { name: '중랑구', lat: 37.6063, lng: 127.0927, risk: 'high' },
+const districtCoords: { name: string; lat: number; lng: number }[] = [
+  { name: '강남구', lat: 37.5172, lng: 127.0473 },
+  { name: '강동구', lat: 37.5301, lng: 127.1238 },
+  { name: '강북구', lat: 37.6396, lng: 127.0257 },
+  { name: '강서구', lat: 37.5509, lng: 126.8495 },
+  { name: '관악구', lat: 37.4784, lng: 126.9516 },
+  { name: '광진구', lat: 37.5384, lng: 127.0823 },
+  { name: '구로구', lat: 37.4955, lng: 126.8875 },
+  { name: '금천구', lat: 37.4568, lng: 126.8955 },
+  { name: '노원구', lat: 37.6544, lng: 127.0563 },
+  { name: '도봉구', lat: 37.6688, lng: 127.0471 },
+  { name: '동대문구', lat: 37.5744, lng: 127.0396 },
+  { name: '동작구', lat: 37.5124, lng: 126.9393 },
+  { name: '마포구', lat: 37.5637, lng: 126.9084 },
+  { name: '서대문구', lat: 37.5791, lng: 126.9368 },
+  { name: '서초구', lat: 37.4836, lng: 127.0327 },
+  { name: '성동구', lat: 37.5633, lng: 127.0371 },
+  { name: '성북구', lat: 37.5894, lng: 127.0167 },
+  { name: '송파구', lat: 37.5145, lng: 127.1059 },
+  { name: '양천구', lat: 37.517, lng: 126.8664 },
+  { name: '영등포구', lat: 37.5264, lng: 126.8963 },
+  { name: '용산구', lat: 37.5311, lng: 126.981 },
+  { name: '은평구', lat: 37.6026, lng: 126.9291 },
+  { name: '종로구', lat: 37.5735, lng: 126.979 },
+  { name: '중구', lat: 37.564, lng: 126.9975 },
+  { name: '중랑구', lat: 37.6063, lng: 127.0927 },
 ]
 
 const RISK_CONFIG: Record<RiskLevel, { color: string; label: string }> = {
@@ -48,6 +48,7 @@ const RISK_CONFIG: Record<RiskLevel, { color: string; label: string }> = {
 
 export default function MapPage() {
   const mapRef = useRef<HTMLDivElement>(null)
+  const districtRisksRef = useRef<Record<string, RiskLevel>>({})
 
   const initMap = (lat = 37.5665, lng = 126.978) => {
     if (!window.kakao) return
@@ -58,8 +59,10 @@ export default function MapPage() {
         center: new window.kakao.maps.LatLng(lat, lng),
         level: 8,
       })
-      districts.forEach((district) => {
-        const config = RISK_CONFIG[district.risk]
+
+      districtCoords.forEach((district) => {
+        const risk = districtRisksRef.current[district.name] ?? 'low'
+        const config = RISK_CONFIG[risk]
         const position = new window.kakao.maps.LatLng(district.lat, district.lng)
 
         new window.kakao.maps.Circle({
@@ -81,7 +84,6 @@ export default function MapPage() {
         })
       })
 
-      // 현재 위치 마커
       new window.kakao.maps.CustomOverlay({
         map,
         position: new window.kakao.maps.LatLng(lat, lng),
@@ -91,7 +93,15 @@ export default function MapPage() {
     })
   }
 
-  const loadWithLocation = () => {
+  const loadWithData = async () => {
+    try {
+      const res = await fetch('/api/rainfall/districts')
+      const data = await res.json()
+      districtRisksRef.current = data
+    } catch {
+      // API 실패 시 모든 구 low로 표시
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
       () => initMap(),
@@ -100,7 +110,7 @@ export default function MapPage() {
   }
 
   useEffect(() => {
-    if (window.kakao?.maps) loadWithLocation()
+    if (window.kakao?.maps) loadWithData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -109,7 +119,7 @@ export default function MapPage() {
       <Script
         src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
         strategy="afterInteractive"
-        onLoad={loadWithLocation}
+        onLoad={loadWithData}
       />
 
       {/* 지도 */}
@@ -131,18 +141,18 @@ export default function MapPage() {
       {/* 하단 정보 패널 */}
       <div className="flex flex-col gap-2 p-4 bg-white border-t border-gray-100">
         <p className="text-sm font-semibold text-gray-800">
-          📍 강남구 역삼동 강남역 일대
+          📍 실시간 서울시 강우량 기준
         </p>
         <Link
           href="/report/new"
           className="flex items-center gap-1.5 text-sm text-orange-500 font-semibold"
         >
           <span>⚠️</span>
-          <span>침수 위험 높음 · 하수구 신고하기</span>
+          <span>하수구 문제를 발견하셨나요? 신고하기</span>
           <span>→</span>
         </Link>
         <p className="text-xs text-gray-500">
-          예상 강수량 85mm · 미처리 하수구 12건
+          서울시 강우량 관측소 데이터 · 10분 단위 갱신
         </p>
       </div>
     </div>
