@@ -3,12 +3,12 @@
 import { useRouter } from 'next/navigation'
 
 interface Props {
+  reportId: string
   onClose: () => void
 }
 
-const reportNumber = `#${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 9000) + 1000)}`
-
-export default function ReportCompleteModal({ onClose }: Props) {
+export default function ReportCompleteModal({ reportId, onClose }: Props) {
+  const shortId = reportId.slice(0, 8).toUpperCase()
   const router = useRouter()
 
   const handleMapReturn = () => {
@@ -61,7 +61,7 @@ export default function ReportCompleteModal({ onClose }: Props) {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">신고 번호</span>
-            <span className="text-gray-700">{reportNumber}</span>
+            <span className="text-gray-700">#{shortId}</span>
           </div>
         </div>
 

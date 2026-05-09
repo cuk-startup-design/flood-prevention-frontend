@@ -77,7 +77,13 @@ export default function PhotoPreviewModal({ file, onClose }: Props) {
       </div>
 
       {showChecklist && (
-        <ChecklistModal photoUrl={url} onClose={onClose} />
+        <ChecklistModal
+          photoUrl={url}
+          file={file}
+          lat={lat}
+          lng={lng}
+          onClose={onClose}
+        />
       )}
     </div>
   )

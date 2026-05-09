@@ -1,10 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useUserStore } from '@/store/userStore'
 import ReportCompleteModal from './ReportCompleteModal'
 
 interface Props {
   photoUrl: string
+  file: File
+  lat: number | null
+  lng: number | null
   onClose: () => void
 }
 
@@ -36,9 +41,50 @@ const categoryStyle: Record<Category, string> = {
 
 const categories: Category[] = ['위험 징후', '주의 징후', '기타']
 
-export default function ChecklistModal({ photoUrl, onClose }: Props) {
+const DISTRICT_CENTERS = [
+  { name: '강남구', lat: 37.5172, lng: 127.0473 },
+  { name: '강동구', lat: 37.5301, lng: 127.1238 },
+  { name: '강북구', lat: 37.6396, lng: 127.0257 },
+  { name: '강서구', lat: 37.5509, lng: 126.8495 },
+  { name: '관악구', lat: 37.4784, lng: 126.9516 },
+  { name: '광진구', lat: 37.5384, lng: 127.0823 },
+  { name: '구로구', lat: 37.4955, lng: 126.8875 },
+  { name: '금천구', lat: 37.4568, lng: 126.8955 },
+  { name: '노원구', lat: 37.6544, lng: 127.0563 },
+  { name: '도봉구', lat: 37.6688, lng: 127.0471 },
+  { name: '동대문구', lat: 37.5744, lng: 127.0396 },
+  { name: '동작구', lat: 37.5124, lng: 126.9393 },
+  { name: '마포구', lat: 37.5637, lng: 126.9084 },
+  { name: '서대문구', lat: 37.5791, lng: 126.9368 },
+  { name: '서초구', lat: 37.4836, lng: 127.0327 },
+  { name: '성동구', lat: 37.5633, lng: 127.0371 },
+  { name: '성북구', lat: 37.5894, lng: 127.0167 },
+  { name: '송파구', lat: 37.5145, lng: 127.1059 },
+  { name: '양천구', lat: 37.517, lng: 126.8664 },
+  { name: '영등포구', lat: 37.5264, lng: 126.8963 },
+  { name: '용산구', lat: 37.5311, lng: 126.981 },
+  { name: '은평구', lat: 37.6026, lng: 126.9291 },
+  { name: '종로구', lat: 37.5735, lng: 126.979 },
+  { name: '중구', lat: 37.564, lng: 126.9975 },
+  { name: '중랑구', lat: 37.6063, lng: 127.0927 },
+]
+
+function nearestDistrict(lat: number, lng: number) {
+  let nearest = DISTRICT_CENTERS[0]
+  let minDist = Infinity
+  for (const d of DISTRICT_CENTERS) {
+    const dist = (d.lat - lat) ** 2 + (d.lng - lng) ** 2
+    if (dist < minDist) { minDist = dist; nearest = d }
+  }
+  return nearest.name
+}
+
+export default function ChecklistModal({ photoUrl, file, lat, lng, onClose }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [showComplete, setShowComplete] = useState(false)
+  const [reportId, setReportId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const { user } = useUserStore()
 
   const toggle = (id: number) => {
     setSelected((prev) => {
@@ -46,6 +92,49 @@ export default function ChecklistModal({ photoUrl, onClose }: Props) {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  }
+
+  const handleSubmit = async () => {
+    if (!user) { setError('로그인이 필요합니다.'); return }
+    setLoading(true)
+    setError('')
+
+    // 사진 업로드
+    let photoStorageUrl: string | null = null
+    const filePath = `${user.id}/${Date.now()}.jpg`
+    const { error: uploadError } = await supabase.storage
+      .from('report-photos')
+      .upload(filePath, file)
+    if (!uploadError) {
+      const { data: { publicUrl } } = supabase.storage
+        .from('report-photos')
+        .getPublicUrl(filePath)
+      photoStorageUrl = publicUrl
+    }
+
+    // 신고 저장
+    const district = lat && lng ? nearestDistrict(lat, lng) : null
+    const checklistItems = Array.from(selected).map((id) => items.find((i) => i.id === id)!.title)
+    const { error: insertError } = await supabase
+      .from('reports')
+      .insert({
+        user_id: user.id,
+        photo_url: photoStorageUrl,
+        lat,
+        lng,
+        district,
+        checklist_items: checklistItems,
+        status: '대기',
+      })
+
+    setLoading(false)
+
+    if (insertError) {
+      setError('신고 저장에 실패했습니다. 다시 시도해주세요.')
+      return
+    }
+
+    setReportId(crypto.randomUUID())
   }
 
   return (
@@ -112,17 +201,18 @@ export default function ChecklistModal({ photoUrl, onClose }: Props) {
 
       {/* 하단 버튼 */}
       <div className="px-4 py-4 border-t border-gray-100 shrink-0">
+        {error && <p className="text-red-500 text-xs text-center mb-2">{error}</p>}
         <button
           type="button"
-          onClick={() => setShowComplete(true)}
-          disabled={selected.size === 0}
+          onClick={handleSubmit}
+          disabled={selected.size === 0 || loading}
           className="w-full bg-blue-500 text-white font-semibold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors disabled:bg-gray-200 disabled:text-gray-400"
         >
-          신고 완료 {selected.size > 0 && `(${selected.size}개 선택)`}
+          {loading ? '신고 접수 중...' : `신고 완료 ${selected.size > 0 ? `(${selected.size}개 선택)` : ''}`}
         </button>
       </div>
 
-      {showComplete && <ReportCompleteModal onClose={onClose} />}
+      {reportId && <ReportCompleteModal reportId={reportId} onClose={onClose} />}
     </div>
   )
 }
