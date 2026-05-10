@@ -42,40 +42,30 @@ function getRisk(count: number, max: number): 'high' | 'medium' | 'low' {
   return 'low'
 }
 
-function buildWeeklyData(reports: Report[]) {
+function buildWeeklyData(reports: Report[]): { label: string; count: number }[] {
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - (6 - i))
-    return {
-      label: `${d.getMonth() + 1}/${d.getDate()}`,
-      dateStr: d.toISOString().slice(0, 10),
-      count: 0,
-    }
+    return { label: `${d.getMonth() + 1}/${d.getDate()}`, dateStr: d.toISOString().slice(0, 10), count: 0 }
   })
   reports.forEach((r) => {
-    const dateStr = r.created_at.slice(0, 10)
-    const day = days.find((d) => d.dateStr === dateStr)
+    const day = days.find((d) => d.dateStr === r.created_at.slice(0, 10))
     if (day) day.count++
   })
-  return days
+  return days.map(({ label, count }) => ({ label, count }))
 }
 
-function buildMonthlyData(reports: Report[]) {
+function buildMonthlyData(reports: Report[]): { label: string; count: number }[] {
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date()
     d.setMonth(d.getMonth() - (5 - i))
-    return {
-      label: `${d.getMonth() + 1}월`,
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      count: 0,
-    }
+    return { label: `${d.getMonth() + 1}월`, key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, count: 0 }
   })
   reports.forEach((r) => {
-    const key = r.created_at.slice(0, 7)
-    const month = months.find((m) => m.key === key)
+    const month = months.find((m) => m.key === r.created_at.slice(0, 7))
     if (month) month.count++
   })
-  return months
+  return months.map(({ label, count }) => ({ label, count }))
 }
 
 export default function AdminDashboard() {
@@ -195,7 +185,7 @@ export default function AdminDashboard() {
               <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={24} />
               <Tooltip
                 contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                formatter={(v: number) => [`${v}건`, '신고']}
+                formatter={(v) => [`${v}건`, '신고']}
               />
               <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
