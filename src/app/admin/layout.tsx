@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 const navItems = [
   { href: '/admin', label: '대시보드', icon: '📊' },
   { href: '/admin/reports', label: '신고 관리', icon: '📋' },
-  { href: '/admin/users', label: '사용자 관리', icon: '👥' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

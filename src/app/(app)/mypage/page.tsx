@@ -3,7 +3,6 @@ import StatsSection from './_components/StatsSection'
 import FloodRiskSection from './_components/FloodRiskSection'
 import SeoulPaySection from './_components/SeoulPaySection'
 import ReportListSection from './_components/ReportListSection'
-import NotificationSettings from './_components/NotificationSettings'
 
 export default function MyPage() {
   return (
@@ -11,10 +10,9 @@ export default function MyPage() {
       <ProfileSection />
       <StatsSection />
       <div className="flex flex-col gap-5 p-4">
+        <ReportListSection />
         <FloodRiskSection />
         <SeoulPaySection />
-        <ReportListSection />
-        <NotificationSettings />
       </div>
     </div>
   )

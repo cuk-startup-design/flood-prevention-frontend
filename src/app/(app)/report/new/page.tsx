@@ -40,12 +40,6 @@ export default function ReportNewPage() {
         </div>
       </div>
 
-      {/* 위치 정보 */}
-      <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex flex-col gap-1">
-        <p className="text-sm text-gray-500">📍 강남구 역삼동</p>
-        <p className="font-semibold text-sm text-gray-900">주변 미처리 하수구 12개 발견</p>
-      </div>
-
       {/* 신고 절차 */}
       <div className="flex flex-col gap-3">
         <p className="font-semibold text-sm text-gray-700">신고 절차</p>
