@@ -1,6 +1,5 @@
 import ProfileSection from './_components/ProfileSection'
 import StatsSection from './_components/StatsSection'
-import FloodRiskSection from './_components/FloodRiskSection'
 import SeoulPaySection from './_components/SeoulPaySection'
 import ReportListSection from './_components/ReportListSection'
 
@@ -11,7 +10,6 @@ export default function MyPage() {
       <StatsSection />
       <div className="flex flex-col gap-5 p-4">
         <ReportListSection />
-        <FloodRiskSection />
         <SeoulPaySection />
       </div>
     </div>
