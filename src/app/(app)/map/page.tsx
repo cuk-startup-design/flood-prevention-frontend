@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import Link from 'next/link'
 
 declare global {
-  interface Window { kakao: any }
+  interface Window { kakao: any } // eslint-disable-line @typescript-eslint/no-explicit-any
 }
+
+// Kakao Maps SDK has no official TypeScript types
+type KakaoAny = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
 type RiskLevel = 'high' | 'medium' | 'low'
 
@@ -18,8 +21,23 @@ const RISK_CONFIG: Record<RiskLevel, { color: string; label: string }> = {
 
 export default function MapPage() {
   const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<KakaoAny>(null)
+  const locationOverlayRef = useRef<KakaoAny>(null)
   const districtRisksRef = useRef<Record<string, RiskLevel>>({})
-  const geoDataRef = useRef<any>(null)
+  const geoDataRef = useRef<KakaoAny>(null)
+  const [permissionDenied, setPermissionDenied] = useState(false)
+  const [locating, setLocating] = useState(false)
+
+  const placeLocationMarker = (lat: number, lng: number) => {
+    if (!mapInstanceRef.current) return
+    locationOverlayRef.current?.setMap(null)
+    locationOverlayRef.current = new window.kakao.maps.CustomOverlay({
+      map: mapInstanceRef.current,
+      position: new window.kakao.maps.LatLng(lat, lng),
+      content: '<div style="width:14px;height:14px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 0 0 3px rgba(59,130,246,0.3);"></div>',
+      yAnchor: 0.5,
+    })
+  }
 
   const initMap = (lat = 37.5665, lng = 126.978) => {
     if (!window.kakao || !geoDataRef.current) return
@@ -28,10 +46,11 @@ export default function MapPage() {
 
       const map = new window.kakao.maps.Map(mapRef.current, {
         center: new window.kakao.maps.LatLng(lat, lng),
-        level: 8,
+        level: 6,
       })
+      mapInstanceRef.current = map
 
-      geoDataRef.current.features.forEach((feature: any) => {
+      geoDataRef.current.features.forEach((feature: KakaoAny) => {
         const name: string = feature.properties.name
         const risk: RiskLevel = districtRisksRef.current[name] ?? 'low'
         const config = RISK_CONFIG[risk]
@@ -84,15 +103,11 @@ export default function MapPage() {
         })
       })
 
-      new window.kakao.maps.CustomOverlay({
-        map,
-        position: new window.kakao.maps.LatLng(lat, lng),
-        content: '<div style="width:14px;height:14px;background:#3b82f6;border:2px solid white;border-radius:50%;box-shadow:0 0 0 3px rgba(59,130,246,0.3);"></div>',
-        yAnchor: 0.5,
-      })
+      placeLocationMarker(lat, lng)
     })
   }
 
+  // 데이터 로딩 + 지도 초기화 (setState 호출 없음)
   const loadWithData = async () => {
     try {
       const [rainfallRes, geoRes] = await Promise.all([
@@ -111,14 +126,49 @@ export default function MapPage() {
     navigator.geolocation.getCurrentPosition(
       (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
       () => initMap(),
-      { timeout: 5000 }
+      { timeout: 10000 }
     )
   }
 
+  // Effect 1: 위치 권한 상태 구독 (외부 시스템 구독 패턴)
   useEffect(() => {
-    if (window.kakao?.maps) loadWithData()
+    if (!navigator.permissions) return
+    let permStatus: PermissionStatus
+
+    navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+      permStatus = status
+      setPermissionDenied(status.state === 'denied')
+      status.onchange = () => setPermissionDenied(status.state === 'denied')
+    })
+
+    return () => {
+      if (permStatus) permStatus.onchange = null
+    }
+  }, [])
+
+  // Effect 2: 지도 초기화 (setState 호출 없음)
+  useEffect(() => {
+    if (window.kakao?.maps) void loadWithData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const moveToCurrentLocation = () => {
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false)
+        const { latitude, longitude } = pos.coords
+        mapInstanceRef.current?.setCenter(new window.kakao.maps.LatLng(latitude, longitude))
+        mapInstanceRef.current?.setLevel(4)
+        placeLocationMarker(latitude, longitude)
+      },
+      () => {
+        setLocating(false)
+        setPermissionDenied(true)
+      },
+      { timeout: 10000 }
+    )
+  }
 
   return (
     <div className="flex flex-col">
@@ -131,6 +181,7 @@ export default function MapPage() {
       <div className="relative">
         <div ref={mapRef} className="w-full h-[50vh] md:h-[420px]" />
 
+        {/* 위험도 범례 */}
         <div className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm rounded-xl shadow-md px-3 py-2.5 text-xs">
           <p className="font-semibold text-gray-700 mb-1.5">침수위험도</p>
           {(['high', 'medium', 'low'] as RiskLevel[]).map((key) => (
@@ -140,6 +191,22 @@ export default function MapPage() {
             </div>
           ))}
         </div>
+
+        {/* 현재 위치 버튼 */}
+        <button
+          type="button"
+          onClick={moveToCurrentLocation}
+          className="absolute bottom-4 right-3 z-10 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+        >
+          {locating ? (
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            </svg>
+          )}
+        </button>
       </div>
 
       <div className="flex flex-col gap-2 p-4 bg-white border-t border-gray-100">
@@ -151,6 +218,39 @@ export default function MapPage() {
         </Link>
         <p className="text-xs text-gray-500">서울시 강우량 관측소 데이터 · 10분 단위 갱신</p>
       </div>
+
+      {/* 위치 권한 거부 모달 */}
+      {permissionDenied && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl mx-4 max-w-sm w-full p-6 flex flex-col items-center text-center">
+            <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+            </div>
+            <h2 className="text-base font-bold text-gray-900 mb-2">위치 권한이 필요합니다</h2>
+            <p className="text-sm text-gray-500 mb-4 leading-relaxed">
+              현재 위치 기반 침수 위험도를 확인하려면 위치 접근 권한이 필요합니다.
+            </p>
+            <div className="w-full bg-gray-50 rounded-xl px-4 py-3 mb-5 text-left">
+              <p className="text-xs font-semibold text-gray-700 mb-1.5">권한 허용 방법</p>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                주소창 왼쪽 🔒 아이콘 탭<br />
+                → <span className="font-medium text-gray-700">위치</span> → <span className="font-medium text-blue-500">허용</span>으로 변경<br />
+                → 아래 버튼으로 새로고침
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="w-full py-3 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors"
+            >
+              새로고침
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

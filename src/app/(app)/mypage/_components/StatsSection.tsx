@@ -22,7 +22,7 @@ export default function StatsSection() {
 
   const stats = [
     { value: `${total}건`, label: '총 신고' },
-    { value: `${total * 500}P`, label: '서울페이' },
+    { value: `${done * 500}P`, label: '서울페이' },
     { value: `${done}건`, label: '처리 완료' },
   ]
 
