@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Script from 'next/script'
 import { supabase } from '@/lib/supabase'
 
 type Status = '전체' | '대기' | '완료' | '반려'
@@ -9,6 +10,8 @@ interface Report {
   id: string
   user_id: string
   district: string | null
+  lat: number | null
+  lng: number | null
   checklist_items: string[]
   photo_url: string | null
   status: '대기' | '완료' | '반려'
@@ -29,17 +32,42 @@ export default function AdminReportsPage() {
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Report | null>(null)
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
       .from('reports')
-      .select('id, user_id, district, checklist_items, photo_url, status, created_at, profiles(name)')
+      .select('id, user_id, district, lat, lng, checklist_items, photo_url, status, created_at, profiles(name)')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         setReports((data as unknown as Report[]) ?? [])
         setLoading(false)
       })
   }, [])
+
+  useEffect(() => {
+    setSelectedAddress(null)
+    if (!selected?.lat || !selected?.lng) return
+    const { lat, lng } = selected
+
+    const geocode = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const geocoder = new (window as any).kakao.maps.services.Geocoder()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      geocoder.coord2Address(lng, lat, (result: any, status: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (status === (window as any).kakao.maps.services.Status.OK) {
+          const addr = result[0].address
+          setSelectedAddress(`${addr.region_2depth_name} ${addr.region_3depth_name}`)
+        }
+      })
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const kakao = (window as any).kakao
+    if (kakao?.maps?.services) geocode()
+    else if (kakao?.maps) kakao.maps.load(geocode)
+  }, [selected])
 
   const filtered = activeTab === '전체' ? reports : reports.filter((r) => r.status === activeTab)
 
@@ -58,6 +86,10 @@ export default function AdminReportsPage() {
 
   return (
     <div className="p-6 flex flex-col gap-5">
+      <Script
+        src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false&libraries=services`}
+        strategy="afterInteractive"
+      />
       <h1 className="text-xl font-bold text-gray-900">신고 관리</h1>
 
       <div className="flex gap-2">
@@ -186,8 +218,10 @@ export default function AdminReportsPage() {
                   <p className="font-medium text-gray-800">{selected.profiles?.name ?? '알 수 없음'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">지역</p>
-                  <p className="font-medium text-gray-800">{selected.district ?? '-'}</p>
+                  <p className="text-xs text-gray-400 mb-0.5">위치</p>
+                  <p className="font-medium text-gray-800">
+                    {selectedAddress ?? selected.district ?? '-'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">신고 일시</p>

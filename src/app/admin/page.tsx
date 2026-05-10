@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie } from 'recharts'
 
 interface Report {
   id: string
@@ -53,6 +53,21 @@ function buildWeeklyData(reports: Report[]): { label: string; count: number }[] 
     if (day) day.count++
   })
   return days.map(({ label, count }) => ({ label, count }))
+}
+
+const SYMPTOM_COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#f97316']
+
+function buildSymptomData(reports: Report[]) {
+  const counts: Record<string, number> = {}
+  for (const r of reports) {
+    for (const item of r.checklist_items ?? []) {
+      counts[item] = (counts[item] ?? 0) + 1
+    }
+  }
+  return Object.entries(counts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6)
+    .map(([name, value], i) => ({ name, value, fill: SYMPTOM_COLORS[i] }))
 }
 
 function buildMonthlyData(reports: Report[]): { label: string; count: number }[] {
@@ -110,6 +125,7 @@ export default function AdminDashboard() {
   const maxCount = districtStats[0]?.count ?? 1
   const recentReports = allReports.slice(0, 5)
   const chartData = chartTab === '주간' ? buildWeeklyData(allReports) : buildMonthlyData(allReports)
+  const symptomData = buildSymptomData(allReports)
 
   const statCards: { label: ModalFilter; value: number; sub: string; bar: string; num: string }[] = [
     { label: '전체', value: stats.total, sub: `처리율 ${processRate}%`, bar: 'bg-blue-500', num: 'text-blue-600' },
@@ -243,6 +259,49 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* 증상 분포 도넛 차트 */}
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <h2 className="text-sm font-bold text-gray-800 mb-4">주요 증상 분포</h2>
+        {loading ? (
+          <div className="h-40 flex items-center justify-center text-sm text-gray-400">불러오는 중...</div>
+        ) : symptomData.length === 0 ? (
+          <div className="h-40 flex items-center justify-center text-sm text-gray-400">신고 데이터가 없습니다</div>
+        ) : (
+          <div className="flex flex-col lg:flex-row items-center gap-6">
+            <ResponsiveContainer width={220} height={220}>
+              <PieChart>
+                <Pie
+                  data={symptomData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  dataKey="value"
+                  paddingAngle={3}
+                >
+                </Pie>
+                <Tooltip
+                  contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                  formatter={(v, _, props) => [`${v}건`, props.payload.name]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-col gap-2 flex-1 w-full">
+              {symptomData.map((item) => (
+                <div key={item.name} className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill }} />
+                  <span className="text-xs text-gray-600 flex-1 truncate">{item.name}</span>
+                  <span className="text-xs font-bold shrink-0" style={{ color: item.fill }}>{item.value}건</span>
+                  <span className="text-xs text-gray-400 shrink-0 w-8 text-right">
+                    {Math.round((item.value / symptomData.reduce((s, d) => s + d.value, 0)) * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {modalFilter && (
