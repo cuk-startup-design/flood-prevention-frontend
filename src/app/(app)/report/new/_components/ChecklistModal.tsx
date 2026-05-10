@@ -101,16 +101,20 @@ export default function ChecklistModal({ photoUrl, file, lat, lng, onClose }: Pr
 
     // 사진 업로드
     let photoStorageUrl: string | null = null
-    const filePath = `${user.id}/${Date.now()}.jpg`
+    const ext = file.type.split('/')[1] ?? 'jpg'
+    const filePath = `${user.id}/${Date.now()}.${ext}`
     const { error: uploadError } = await supabase.storage
       .from('report-photos')
-      .upload(filePath, file)
-    if (!uploadError) {
-      const { data: { publicUrl } } = supabase.storage
-        .from('report-photos')
-        .getPublicUrl(filePath)
-      photoStorageUrl = publicUrl
+      .upload(filePath, file, { contentType: file.type })
+    if (uploadError) {
+      setLoading(false)
+      setError(`사진 업로드 실패: ${uploadError.message}`)
+      return
     }
+    const { data: { publicUrl } } = supabase.storage
+      .from('report-photos')
+      .getPublicUrl(filePath)
+    photoStorageUrl = publicUrl
 
     // 신고 저장
     const district = lat && lng ? nearestDistrict(lat, lng) : null
