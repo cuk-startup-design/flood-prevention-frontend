@@ -70,23 +70,6 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 위험도 수동 전환 (테스트용) */}
-        <div className="flex gap-2">
-          {(['low', 'medium', 'high'] as RiskLevel[]).map((level) => (
-            <button
-              key={level}
-              type="button"
-              onClick={() => setRisk(level)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                risk === level
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white/70 text-gray-600 border-gray-200'
-              }`}
-            >
-              {level === 'low' ? '낮음' : level === 'medium' ? '보통' : '높음'}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   )

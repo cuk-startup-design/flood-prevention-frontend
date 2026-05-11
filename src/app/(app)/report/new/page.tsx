@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Script from 'next/script'
 import PhotoPreviewModal from './_components/PhotoPreviewModal'
 
 export default function ReportNewPage() {
@@ -15,6 +16,10 @@ export default function ReportNewPage() {
 
   return (
     <div className="flex flex-col p-4 gap-4">
+      <Script
+        src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false&libraries=services`}
+        strategy="afterInteractive"
+      />
       {/* 배너 */}
       <div className="bg-blue-500 rounded-2xl p-5 text-white flex flex-col gap-3">
         <div className="flex flex-col gap-1">

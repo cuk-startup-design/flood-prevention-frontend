@@ -16,6 +16,7 @@ export default function PhotoPreviewModal({ file, onClose }: Props) {
   })
   const [lat, setLat] = useState<number | null>(null)
   const [lng, setLng] = useState<number | null>(null)
+  const [address, setAddress] = useState<string | null>(null)
   const [gpsLoading, setGpsLoading] = useState(true)
   const [showChecklist, setShowChecklist] = useState(false)
 
@@ -31,6 +32,25 @@ export default function PhotoPreviewModal({ file, onClose }: Props) {
     )
     return () => URL.revokeObjectURL(url)
   }, [url])
+
+  useEffect(() => {
+    if (lat === null || lng === null) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const kakao = (window as any).kakao
+    const geocode = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const geocoder = new kakao.maps.services.Geocoder()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      geocoder.coord2Address(lng, lat, (result: any, status: any) => {
+        if (status === kakao.maps.services.Status.OK) {
+          const addr = result[0].address
+          setAddress(`${addr.region_2depth_name} ${addr.region_3depth_name}`)
+        }
+      })
+    }
+    if (kakao?.maps?.services) geocode()
+    else if (kakao?.maps) kakao.maps.load(geocode)
+  }, [lat, lng])
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -61,7 +81,7 @@ export default function PhotoPreviewModal({ file, onClose }: Props) {
             {gpsLoading ? (
               <span className="text-gray-400">GPS 수신 중...</span>
             ) : lat !== null ? (
-              <span>{lat.toFixed(6)}, {lng!.toFixed(6)}</span>
+              <span>{address ?? '주소 변환 중...'}</span>
             ) : (
               <span className="text-gray-400">위치 정보 없음</span>
             )}
