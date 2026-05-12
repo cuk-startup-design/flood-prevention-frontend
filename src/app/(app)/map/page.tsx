@@ -47,8 +47,34 @@ export default function MapPage() {
       const map = new window.kakao.maps.Map(mapRef.current, {
         center: new window.kakao.maps.LatLng(lat, lng),
         level: 6,
+        maxLevel: 8,
       })
       mapInstanceRef.current = map
+
+      // 서울 경계 이탈 시 가장 가까운 경계 안쪽으로 snap back
+      const SEOUL = { north: 37.715, south: 37.413, west: 126.734, east: 127.185 }
+      window.kakao.maps.event.addListener(map, 'dragend', () => {
+        const center = map.getCenter()
+        const clampedLat = Math.min(SEOUL.north, Math.max(SEOUL.south, center.getLat()))
+        const clampedLng = Math.min(SEOUL.east, Math.max(SEOUL.west, center.getLng()))
+        if (clampedLat !== center.getLat() || clampedLng !== center.getLng()) {
+          map.panTo(new window.kakao.maps.LatLng(clampedLat, clampedLng))
+        }
+      })
+
+      // 서울 외부 마스킹: 서울 주변 영역을 반투명 회색으로 덮어 서울만 강조
+      new window.kakao.maps.Polygon({
+        map,
+        path: [
+          new window.kakao.maps.LatLng(38.8, 124.5),
+          new window.kakao.maps.LatLng(38.8, 129.5),
+          new window.kakao.maps.LatLng(35.5, 129.5),
+          new window.kakao.maps.LatLng(35.5, 124.5),
+        ],
+        strokeWeight: 0,
+        fillColor: '#64748b',
+        fillOpacity: 0.35,
+      })
 
       geoDataRef.current.features.forEach((feature: KakaoAny) => {
         const name: string = feature.properties.name
