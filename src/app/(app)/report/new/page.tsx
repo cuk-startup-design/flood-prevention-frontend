@@ -25,7 +25,7 @@ export default function ReportNewPage() {
         <div className="flex flex-col gap-1">
           <span className="text-3xl">📷</span>
           <p className="font-bold text-lg leading-snug">막힌 하수구, 지금 신고하세요</p>
-          <p className="text-sm text-blue-100">사진 + 체크리스트로 3초 완료 · +500P</p>
+          <p className="text-sm text-blue-100">사진 + 체크리스트로 간편 신고 · 담당 공무원 확인 후 포인트 지급</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -51,7 +51,7 @@ export default function ReportNewPage() {
         {[
           { step: 1, title: '사진 촬영', desc: 'GPS + 타임스탬프 자동 기록' },
           { step: 2, title: '상태 체크리스트', desc: '막힘 / 이물질 / 악취 상태 선택' },
-          { step: 3, title: '신고 완료 + 서울페이 적립', desc: '담당 공무원 즉시 배정' },
+          { step: 3, title: '신고 완료', desc: '담당 공무원 확인 후 포인트 지급됩니다' },
         ].map(({ step, title, desc }) => (
           <div key={step} className="flex items-start gap-3 bg-white rounded-2xl border border-gray-100 px-4 py-3">
             <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">

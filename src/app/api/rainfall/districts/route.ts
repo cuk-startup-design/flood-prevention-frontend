@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const SEOUL_GU = [
   '강남구', '강동구', '강북구', '강서구', '관악구', '광진구', '구로구', '금천구',
@@ -7,18 +8,82 @@ const SEOUL_GU = [
   '종로구', '중구', '중랑구',
 ]
 
-// 구별 역사적 침수 취약성 점수 (논문 기반 AHP 가중치 적용)
-// 근거: 한강 저지대 + 과거 침수 이력 + 불투수면적 비율
-const VULNERABILITY: Record<string, number> = {
-  강남구: 0.90, 서초구: 0.85, 동작구: 0.80,
-  영등포구: 0.75, 관악구: 0.70, 강서구: 0.65,
-  마포구: 0.55, 성동구: 0.52, 광진구: 0.50,
-  송파구: 0.50, 양천구: 0.47, 중랑구: 0.43,
-  노원구: 0.40, 구로구: 0.38, 강동구: 0.38,
-  용산구: 0.36, 금천구: 0.35, 은평구: 0.33,
-  동대문구: 0.33, 도봉구: 0.30, 강북구: 0.30,
-  성북구: 0.30, 서대문구: 0.30, 종로구: 0.30,
-  중구: 0.30,
+// ─────────────────────────────────────────────────────────────────────────────
+// 취약성 = 침수위험지구(40%) + 불투수면적(35%) + 하천유역특성(25%)
+//
+// [A] 침수위험지구: 서울시 자연재해위험개선지구(침수지구) 현황 API (tbNatureDangerLocal)
+//     서울시 물순환안전국 치수안전과 제공, 갱신주기 비정기
+//     → 구별 침수위험지구 지정 개수 집계 후 max 정규화 (0~1)
+//
+// [B] 불투수면적: 서울시 환경백서 구별 불투수면 비율 (%)
+//     정규화: (실제% - 최소55) / (최대91 - 55) → 0~1
+//
+// [C] 하천유역 특성: 한강·지류 근접도 + 저지대 여부 (AHP 논문 기반 정성 지표)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// [B] 불투수면적 정규화값 (서울시 환경백서)
+const IMPERV: Record<string, number> = {
+  중구: 1.00, 영등포구: 0.89, 양천구: 0.86, 강남구: 0.75, 구로구: 0.75,
+  용산구: 0.69, 마포구: 0.69, 종로구: 0.67, 송파구: 0.58, 금천구: 0.58,
+  광진구: 0.56, 동작구: 0.61, 성동구: 0.61, 동대문구: 0.50, 강동구: 0.47,
+  중랑구: 0.47, 관악구: 0.44, 강서구: 0.42, 서대문구: 0.36, 서초구: 0.31,
+  성북구: 0.28, 은평구: 0.25, 강북구: 0.14, 노원구: 0.08, 도봉구: 0.00,
+}
+
+// [C] 하천유역 특성 (한국수자원학회 2018 AHP 논문 기반)
+const BASIN: Record<string, number> = {
+  영등포구: 0.90, 강서구: 0.85, 마포구: 0.80, 동작구: 0.75, 용산구: 0.75,
+  구로구: 0.75, 강남구: 0.70, 서초구: 0.70, 광진구: 0.70, 금천구: 0.70,
+  양천구: 0.70, 성동구: 0.65, 송파구: 0.65, 관악구: 0.55, 중랑구: 0.55,
+  강동구: 0.55, 중구: 0.55, 동대문구: 0.50, 종로구: 0.45, 성북구: 0.40,
+  서대문구: 0.40, 노원구: 0.35, 은평구: 0.35, 강북구: 0.30, 도봉구: 0.25,
+}
+
+// 최근 7일 구별 신고 건수 → 정규화 (Supabase reports 테이블)
+async function fetchReportScores(): Promise<Record<string, number>> {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { data } = await supabase
+    .from('reports')
+    .select('district')
+    .gte('created_at', since)
+    .not('district', 'is', null)
+
+  const counts: Record<string, number> = {}
+  for (const row of data ?? []) {
+    if (row.district) counts[row.district] = (counts[row.district] ?? 0) + 1
+  }
+
+  const max = Math.max(...Object.values(counts), 1)
+  return Object.fromEntries(
+    Object.entries(counts).map(([gu, count]) => [gu, count / max])
+  )
+}
+
+// [A] 서울시 자연재해위험개선지구(침수지구) 현황 API
+async function fetchFloodZoneScores(key: string): Promise<Record<string, number>> {
+  const res = await fetch(
+    `http://openapi.seoul.go.kr:8088/${key}/json/tbNatureDangerLocal/1/1000/`,
+    { next: { revalidate: 86400 } } // 비정기 갱신 데이터 → 24시간 캐시
+  )
+  const data = await res.json()
+  const rows: Record<string, string>[] = data?.tbNatureDangerLocal?.row ?? []
+
+  const counts: Record<string, number> = {}
+  for (const row of rows) {
+    const rowStr = JSON.stringify(row)
+    if (!rowStr.includes('침수')) continue
+    const gu = SEOUL_GU.find((g) => rowStr.includes(g))
+    if (gu) counts[gu] = (counts[gu] ?? 0) + 1
+  }
+
+  const max = Math.max(...Object.values(counts), 1)
+  return Object.fromEntries(
+    Object.entries(counts).map(([gu, count]) => [gu, count / max])
+  )
 }
 
 const SEWER_CODES = Array.from({ length: 25 }, (_, i) => String(i + 1).padStart(2, '0'))
@@ -107,9 +172,11 @@ export async function GET() {
   const rainfallUrl = `http://openAPI.seoul.go.kr:8088/${key}/json/ListRainfallService/1/100/`
 
   try {
-    const [rainfallData, sewerScores] = await Promise.all([
+    const [rainfallData, sewerScores, floodZoneScores, reportScores] = await Promise.all([
       fetch(rainfallUrl, { next: { revalidate: 60 } }).then((r) => r.json() as Promise<SeoulApiResponse>),
       fetchSewerScores(key!).catch(() => ({} as Record<string, number>)),
+      fetchFloodZoneScores(key!).catch(() => ({} as Record<string, number>)),
+      fetchReportScores().catch(() => ({} as Record<string, number>)),
     ])
 
     const rows = rainfallData.ListRainfallService?.row ?? []
@@ -125,9 +192,15 @@ export async function GET() {
     for (const gu of SEOUL_GU) {
       const rain = rainfallScore(guMaxRain[gu] ?? 0)
       const sewer = sewerScores[gu] ?? 0.15
-      const vuln = VULNERABILITY[gu] ?? 0.30
 
-      const composite = 0.5 * rain + 0.3 * sewer + 0.2 * vuln
+      // 취약성 = 침수위험지구[A](40%) + 불투수면적[B](35%) + 하천유역[C](25%)
+      const vuln =
+        0.40 * (floodZoneScores[gu] ?? 0) +
+        0.35 * (IMPERV[gu] ?? 0.30) +
+        0.25 * (BASIN[gu] ?? 0.30)
+
+      // 복합 위험 지수: 강수(45%) + 하수수위(30%) + 취약성(20%) + 당일신고건수(5%)
+      const composite = 0.45 * rain + 0.30 * sewer + 0.20 * vuln + 0.05 * (reportScores[gu] ?? 0)
       result[gu] = compositeToRisk(composite)
     }
 
