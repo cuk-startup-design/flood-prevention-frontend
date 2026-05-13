@@ -34,9 +34,9 @@ export default function ReportCompleteModal({ reportId, onClose }: Props) {
               신고가 접수되었습니다
             </p>
             <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-              담당 공무원이 배정되어
+              담당 공무원 확인 후
               <br />
-              즉시 처리를 시작합니다
+              포인트가 지급됩니다
             </p>
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function ReportCompleteModal({ reportId, onClose }: Props) {
           </p>
           <div className="flex justify-between text-sm">
             <span className="text-gray-700">신고 기본</span>
-            <span className="font-bold text-blue-600">+500P</span>
+            <span className="font-bold text-gray-400">확인 후 지급</span>
           </div>
           <div className="h-px bg-gray-200" />
           <div className="flex justify-between text-sm">
