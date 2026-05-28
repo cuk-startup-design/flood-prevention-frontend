@@ -40,19 +40,21 @@ export default function MapPage() {
   }
 
   const initMap = (lat = 37.5665, lng = 126.978) => {
+    // 경기도로 전환 시: initMap(lat = 37.4138, lng = 127.5183)
     if (!window.kakao || !geoDataRef.current) return
     window.kakao.maps.load(() => {
       if (!mapRef.current) return
 
       const map = new window.kakao.maps.Map(mapRef.current, {
         center: new window.kakao.maps.LatLng(lat, lng),
-        level: 6,
-        maxLevel: 8,
+        level: 6,     // 경기도로 전환 시: level: 9
+        maxLevel: 8,  // 경기도로 전환 시: maxLevel: 11
       })
       mapInstanceRef.current = map
 
       // 서울 경계 이탈 시 가장 가까운 경계 안쪽으로 snap back
       const SEOUL = { north: 37.715, south: 37.413, west: 126.734, east: 127.185 }
+      // 경기도로 전환 시: const GYEONGGI = { north: 38.3, south: 36.9, west: 126.3, east: 127.9 }
       window.kakao.maps.event.addListener(map, 'dragend', () => {
         const center = map.getCenter()
         const clampedLat = Math.min(SEOUL.north, Math.max(SEOUL.south, center.getLat()))
@@ -138,13 +140,13 @@ export default function MapPage() {
     try {
       const [rainfallRes, geoRes] = await Promise.all([
         fetch('/api/rainfall/districts'),
-        fetch('/seoul-districts.json'),
+        fetch('/seoul-districts.json'), // 경기도로 전환 시: '/gyeonggi-districts.json'
       ])
       districtRisksRef.current = await rainfallRes.json()
       geoDataRef.current = await geoRes.json()
     } catch {
       if (!geoDataRef.current) {
-        const geoRes = await fetch('/seoul-districts.json').catch(() => null)
+        const geoRes = await fetch('/seoul-districts.json').catch(() => null) // 경기도로 전환 시: '/gyeonggi-districts.json'
         if (geoRes) geoDataRef.current = await geoRes.json()
       }
     }
@@ -237,12 +239,14 @@ export default function MapPage() {
 
       <div className="flex flex-col gap-2 p-4 bg-white border-t border-gray-100">
         <p className="text-sm font-semibold text-gray-800">📍 실시간 서울시 강우량 기준</p>
+        {/* 경기도로 전환 시: 📍 실시간 경기도 강우량 기준 */}
         <Link href="/report/new" className="flex items-center gap-1.5 text-sm text-orange-500 font-semibold">
           <span>⚠️</span>
           <span>하수구 문제를 발견하셨나요? 신고하기</span>
           <span>→</span>
         </Link>
         <p className="text-xs text-gray-500">서울시 강우량 관측소 데이터 · 10분 단위 갱신</p>
+        {/* 경기도로 전환 시: 경기도 강우량 관측소 데이터 · 10분 단위 갱신 */}
       </div>
 
       {/* 위치 권한 거부 모달 */}
