@@ -33,6 +33,17 @@ export default function AdminReportsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Report | null>(null)
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null)
+  const [highRiskDistricts, setHighRiskDistricts] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    fetch('/api/rainfall/districts')
+      .then((r) => r.json())
+      .then((data: Record<string, { risk: string }>) => {
+        const high = new Set(Object.entries(data).filter(([, d]) => d.risk === 'high').map(([name]) => name))
+        setHighRiskDistricts(high)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     supabase
@@ -142,7 +153,14 @@ export default function AdminReportsPage() {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-600">#{r.id.slice(0, 8).toUpperCase()}</td>
                   <td className="px-4 py-3 font-medium text-gray-800">{r.profiles?.name ?? '알 수 없음'}</td>
-                  <td className="px-4 py-3 text-gray-600">{r.district ?? '-'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-gray-600 text-sm">{r.district ?? '-'}</span>
+                      {r.district && highRiskDistricts.has(r.district) && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-bold shrink-0">긴급</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">
                     {r.checklist_items?.[0]}{(r.checklist_items?.length ?? 0) > 1 && ` 외 ${r.checklist_items.length - 1}건`}
                   </td>
@@ -219,9 +237,14 @@ export default function AdminReportsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">위치</p>
-                  <p className="font-medium text-gray-800">
-                    {selectedAddress ?? selected.district ?? '-'}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-gray-800">
+                      {selectedAddress ?? selected.district ?? '-'}
+                    </p>
+                    {selected.district && highRiskDistricts.has(selected.district) && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-bold">긴급</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">신고 일시</p>

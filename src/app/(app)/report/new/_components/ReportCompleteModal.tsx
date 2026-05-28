@@ -44,7 +44,7 @@ export default function ReportCompleteModal({ reportId, onClose }: Props) {
         {/* 적립 내역 */}
         <div className="mx-4 mb-5 rounded-xl bg-gray-50 px-4 py-3 flex flex-col gap-2.5">
           <p className="text-xs font-semibold text-gray-500">
-            서울페이 적립 내역
+            경기페이 적립 내역
           </p>
           <div className="flex justify-between text-sm">
             <span className="text-gray-700">신고 기본</span>

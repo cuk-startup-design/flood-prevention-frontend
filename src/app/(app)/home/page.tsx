@@ -14,7 +14,7 @@ const riskConfig: Record<RiskLevel, { label: string; sub: string; color: string 
 
 export default function HomePage() {
   const [risk, setRisk] = useState<RiskLevel>('low')
-  const [stationInfo, setStationInfo] = useState<{ name: string; gu: string; rainfall: number } | null>(null)
+  const [sigun, setSigun] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [gpsError, setGpsError] = useState(false)
   const config = riskConfig[risk]
@@ -28,7 +28,7 @@ export default function HomePage() {
           const data = await res.json()
           if (data.risk) {
             setRisk(data.risk)
-            setStationInfo({ name: data.stationName, gu: data.guName, rainfall: data.rainfall })
+            setSigun(data.sigun)
           }
         } catch {
           // API 실패 시 기본값(low) 유지
@@ -53,14 +53,14 @@ export default function HomePage() {
 
         <div className="text-center">
           {loading ? (
-            <p className="text-gray-400 text-sm">위치 및 강우량 확인 중...</p>
+            <p className="text-gray-400 text-sm">위치 확인 중...</p>
           ) : (
             <>
               <p className={`font-bold text-2xl ${config.color}`}>{config.label}</p>
               <p className="text-sm text-gray-500 mt-1">{config.sub}</p>
-              {stationInfo && (
+              {sigun && (
                 <p className="text-xs text-gray-400 mt-1">
-                  {stationInfo.gu} · {stationInfo.name} 관측소 · 10분 강우량 {stationInfo.rainfall}mm
+                  {sigun} · 침수 취약성 지수 기반
                 </p>
               )}
               {gpsError && (

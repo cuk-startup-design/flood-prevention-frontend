@@ -13,20 +13,37 @@ type KakaoAny = any // eslint-disable-line @typescript-eslint/no-explicit-any
 
 type RiskLevel = 'high' | 'medium' | 'low'
 
-const RISK_CONFIG: Record<RiskLevel, { color: string; label: string }> = {
-  high:   { color: '#ef4444', label: '높음' },
-  medium: { color: '#f59e0b', label: '보통' },
-  low:    { color: '#22c55e', label: '낮음' },
+interface DistrictDetail {
+  risk: RiskLevel
+  rainfallMm: number
+  rainfallScore: number
+  vulnScore: number
+  reportCount: number
+  reportScore: number
+  composite: number
+}
+
+const RISK_CONFIG: Record<RiskLevel, { color: string; label: string; bg: string }> = {
+  high:   { color: '#ef4444', label: '높음', bg: 'bg-red-50 text-red-600' },
+  medium: { color: '#f59e0b', label: '보통', bg: 'bg-orange-50 text-orange-500' },
+  low:    { color: '#22c55e', label: '낮음', bg: 'bg-green-50 text-green-600' },
 }
 
 export default function MapPage() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<KakaoAny>(null)
   const locationOverlayRef = useRef<KakaoAny>(null)
-  const districtRisksRef = useRef<Record<string, RiskLevel>>({})
+  const districtRisksRef = useRef<Record<string, DistrictDetail>>({})
   const geoDataRef = useRef<KakaoAny>(null)
   const [permissionDenied, setPermissionDenied] = useState(false)
+  const [modalDismissed, setModalDismissed] = useState(() => typeof window !== 'undefined' && sessionStorage.getItem('locPermDismissed') === 'true')
   const [locating, setLocating] = useState(false)
+  const [selectedDistrict, setSelectedDistrict] = useState<{ name: string } & DistrictDetail | null>(null)
+
+  const dismissLocationModal = () => {
+    sessionStorage.setItem('locPermDismissed', 'true')
+    setModalDismissed(true)
+  }
 
   const placeLocationMarker = (lat: number, lng: number) => {
     if (!mapInstanceRef.current) return
@@ -39,32 +56,30 @@ export default function MapPage() {
     })
   }
 
-  const initMap = (lat = 37.5665, lng = 126.978) => {
-    // 경기도로 전환 시: initMap(lat = 37.4138, lng = 127.5183)
+  const initMap = (lat = 37.4138, lng = 127.5183, showMarker = true) => {
     if (!window.kakao || !geoDataRef.current) return
     window.kakao.maps.load(() => {
       if (!mapRef.current) return
 
       const map = new window.kakao.maps.Map(mapRef.current, {
         center: new window.kakao.maps.LatLng(lat, lng),
-        level: 6,     // 경기도로 전환 시: level: 9
-        maxLevel: 8,  // 경기도로 전환 시: maxLevel: 11
+        level: 9,
+        maxLevel: 11,
       })
       mapInstanceRef.current = map
 
-      // 서울 경계 이탈 시 가장 가까운 경계 안쪽으로 snap back
-      const SEOUL = { north: 37.715, south: 37.413, west: 126.734, east: 127.185 }
-      // 경기도로 전환 시: const GYEONGGI = { north: 38.3, south: 36.9, west: 126.3, east: 127.9 }
+      // 경기도 경계 이탈 시 가장 가까운 경계 안쪽으로 snap back
+      const GYEONGGI = { north: 38.3, south: 36.9, west: 126.3, east: 127.9 }
       window.kakao.maps.event.addListener(map, 'dragend', () => {
         const center = map.getCenter()
-        const clampedLat = Math.min(SEOUL.north, Math.max(SEOUL.south, center.getLat()))
-        const clampedLng = Math.min(SEOUL.east, Math.max(SEOUL.west, center.getLng()))
+        const clampedLat = Math.min(GYEONGGI.north, Math.max(GYEONGGI.south, center.getLat()))
+        const clampedLng = Math.min(GYEONGGI.east, Math.max(GYEONGGI.west, center.getLng()))
         if (clampedLat !== center.getLat() || clampedLng !== center.getLng()) {
           map.panTo(new window.kakao.maps.LatLng(clampedLat, clampedLng))
         }
       })
 
-      // 서울 외부 마스킹: 서울 주변 영역을 반투명 회색으로 덮어 서울만 강조
+      // 경기도 외부 마스킹: 경기도 주변 영역을 반투명 회색으로 덮어 경기도만 강조
       new window.kakao.maps.Polygon({
         map,
         path: [
@@ -80,7 +95,8 @@ export default function MapPage() {
 
       geoDataRef.current.features.forEach((feature: KakaoAny) => {
         const name: string = feature.properties.name
-        const risk: RiskLevel = districtRisksRef.current[name] ?? 'low'
+        const detail = districtRisksRef.current[name]
+        const risk: RiskLevel = detail?.risk ?? 'low'
         const config = RISK_CONFIG[risk]
         const { type, coordinates } = feature.geometry
 
@@ -127,11 +143,15 @@ export default function MapPage() {
             window.kakao.maps.event.addListener(polygon, 'mouseout', () => {
               polygon.setOptions({ fillOpacity: 0.45 })
             })
+            window.kakao.maps.event.addListener(polygon, 'click', () => {
+              const d = districtRisksRef.current[name]
+              if (d) setSelectedDistrict({ name, ...d })
+            })
           }
         })
       })
 
-      placeLocationMarker(lat, lng)
+      if (showMarker) placeLocationMarker(lat, lng)
     })
   }
 
@@ -140,20 +160,20 @@ export default function MapPage() {
     try {
       const [rainfallRes, geoRes] = await Promise.all([
         fetch('/api/rainfall/districts'),
-        fetch('/seoul-districts.json'), // 경기도로 전환 시: '/gyeonggi-districts.json'
+        fetch('/gyeonggi-districts.json'),
       ])
       districtRisksRef.current = await rainfallRes.json()
       geoDataRef.current = await geoRes.json()
     } catch {
       if (!geoDataRef.current) {
-        const geoRes = await fetch('/seoul-districts.json').catch(() => null) // 경기도로 전환 시: '/gyeonggi-districts.json'
+        const geoRes = await fetch('/gyeonggi-districts.json').catch(() => null)
         if (geoRes) geoDataRef.current = await geoRes.json()
       }
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
-      () => initMap(),
+      () => initMap(37.4138, 127.5183, false),
       { timeout: 10000 }
     )
   }
@@ -237,22 +257,74 @@ export default function MapPage() {
         </button>
       </div>
 
+      {/* 지역 클릭 시 위험도 근거 패널 */}
+      {selectedDistrict && (
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-white rounded-t-2xl shadow-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-base text-gray-900">{selectedDistrict.name}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${RISK_CONFIG[selectedDistrict.risk].bg}`}>
+                {RISK_CONFIG[selectedDistrict.risk].label}
+              </span>
+            </div>
+            <button type="button" onClick={() => setSelectedDistrict(null)} className="text-gray-400 hover:text-gray-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            {[
+              { label: '실시간 강수량', value: `${selectedDistrict.rainfallMm}mm`, score: selectedDistrict.rainfallScore, weight: '55%', color: '#3b82f6' },
+              { label: '구조적 취약성', value: `${Math.round(selectedDistrict.vulnScore * 100)}점`, score: selectedDistrict.vulnScore, weight: '30%', color: '#f59e0b' },
+              { label: '당일 신고',     value: `${selectedDistrict.reportCount}건`, score: selectedDistrict.reportScore, weight: '15%', color: '#8b5cf6' },
+            ].map(({ label, value, score, weight, color }) => (
+              <div key={label}>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>{label} <span className="text-gray-400">({weight})</span></span>
+                  <span className="font-medium text-gray-700">{value}</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.round(score * 100)}%`, backgroundColor: color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-xs text-gray-500">종합 위험 지수</span>
+            <span className="text-sm font-bold" style={{ color: RISK_CONFIG[selectedDistrict.risk].color }}>
+              {selectedDistrict.composite.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2 p-4 bg-white border-t border-gray-100">
-        <p className="text-sm font-semibold text-gray-800">📍 실시간 서울시 강우량 기준</p>
-        {/* 경기도로 전환 시: 📍 실시간 경기도 강우량 기준 */}
+        <p className="text-sm font-semibold text-gray-800">📍 실시간 경기도 강우량 기준</p>
         <Link href="/report/new" className="flex items-center gap-1.5 text-sm text-orange-500 font-semibold">
           <span>⚠️</span>
           <span>하수구 문제를 발견하셨나요? 신고하기</span>
           <span>→</span>
         </Link>
-        <p className="text-xs text-gray-500">서울시 강우량 관측소 데이터 · 10분 단위 갱신</p>
-        {/* 경기도로 전환 시: 경기도 강우량 관측소 데이터 · 10분 단위 갱신 */}
+        <p className="text-xs text-gray-500">경기도 강우량 관측소 데이터 · 10분 단위 갱신</p>
       </div>
 
       {/* 위치 권한 거부 모달 */}
-      {permissionDenied && (
+      {permissionDenied && !modalDismissed && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl mx-4 max-w-sm w-full p-6 flex flex-col items-center text-center">
+          <div className="bg-white rounded-2xl shadow-xl mx-4 max-w-sm w-full p-6 flex flex-col items-center text-center relative">
+            <button
+              type="button"
+              onClick={dismissLocationModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="닫기"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
             <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mb-4">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />

@@ -43,7 +43,7 @@ export default function SeoulPaySection() {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="font-semibold text-sm text-gray-700">최근 서울페이 적립 내역</p>
+      <p className="font-semibold text-sm text-gray-700">최근 경기페이 적립 내역</p>
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="px-4 py-8 text-center text-sm text-gray-400">불러오는 중...</div>

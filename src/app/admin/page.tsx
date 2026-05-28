@@ -12,6 +12,16 @@ interface Report {
   created_at: string
 }
 
+interface DistrictDetail {
+  risk: 'low' | 'medium' | 'high'
+  rainfallMm: number
+  rainfallScore: number
+  vulnScore: number
+  reportCount: number
+  reportScore: number
+  composite: number
+}
+
 interface DistrictStat {
   name: string
   count: number
@@ -90,6 +100,16 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [modalFilter, setModalFilter] = useState<ModalFilter | null>(null)
   const [chartTab, setChartTab] = useState<ChartTab>('주간')
+  const [districtRisks, setDistrictRisks] = useState<Record<string, DistrictDetail>>({})
+  const [districtRisksLoading, setDistrictRisksLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/rainfall/districts')
+      .then((r) => r.json())
+      .then((data) => setDistrictRisks(data))
+      .catch(() => {})
+      .finally(() => setDistrictRisksLoading(false))
+  }, [])
 
   useEffect(() => {
     supabase
@@ -122,6 +142,21 @@ export default function AdminDashboard() {
   }, [])
 
   const processRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
+
+  const districtEntries = Object.entries(districtRisks)
+  const earlyWarnDistricts = districtEntries
+    .filter(([, d]) => d.reportScore > 0.3)
+    .sort(([, a], [, b]) => b.reportScore - a.reportScore)
+    .slice(0, 3)
+  const avgRainfall = districtEntries.length > 0
+    ? districtEntries.reduce((s, [, d]) => s + d.rainfallScore, 0) / districtEntries.length
+    : 0
+  const avgVuln = districtEntries.length > 0
+    ? districtEntries.reduce((s, [, d]) => s + d.vulnScore, 0) / districtEntries.length
+    : 0
+  const avgReport = districtEntries.length > 0
+    ? districtEntries.reduce((s, [, d]) => s + d.reportScore, 0) / districtEntries.length
+    : 0
   const maxCount = districtStats[0]?.count ?? 1
   const recentReports = allReports.slice(0, 5)
   const chartData = chartTab === '주간' ? buildWeeklyData(allReports) : buildMonthlyData(allReports)
@@ -301,6 +336,97 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+        )}
+      </div>
+
+      {/* AI 분석 인사이트 */}
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-bold text-gray-800">AI 분석 인사이트</h2>
+          <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-medium ml-auto">실시간</span>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">복합 위험 지수 = 강수량(55%) × 취약성(30%) × 시민신고(15%)</p>
+
+        {districtRisksLoading ? (
+          <div className="py-8 text-center text-sm text-gray-400">AI 분석 중...</div>
+        ) : (
+          <>
+            {/* ① 경기도 실시간 위험 등급 분포 */}
+            <h3 className="text-xs font-semibold text-gray-600 mb-2">경기도 31개 시·군 위험 등급 분포</h3>
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {([
+                { level: 'high' as const, label: '높음', bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-100' },
+                { level: 'medium' as const, label: '보통', bg: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100' },
+                { level: 'low' as const, label: '낮음', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' },
+              ]).map(({ level, label, bg, text, border }) => {
+                const count = districtEntries.filter(([, d]) => d.risk === level).length
+                return (
+                  <div key={level} className={`${bg} border ${border} rounded-xl p-3 text-center`}>
+                    <p className={`text-2xl font-bold ${text}`}>{count}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">위험 {label}</p>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ② Human-in-the-Loop 조기 경보 */}
+            <h3 className="text-xs font-semibold text-gray-600 mb-1">Human-in-the-Loop 조기 경보</h3>
+            <p className="text-xs text-gray-400 mb-2">시민 신고가 집중된 지역 — 구조 취약성 모델 독립 신호</p>
+            <div className="mb-6">
+              {earlyWarnDistricts.length === 0 ? (
+                <p className="text-xs text-gray-400 italic py-2">현재 조기 경보 지역 없음 (신고 집중 지역 없음)</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {earlyWarnDistricts.map(([name, d]) => (
+                    <div key={name} className="flex items-center gap-3 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                      <span className="text-xs font-semibold text-orange-800 w-16 shrink-0">{name}</span>
+                      <div className="flex-1 flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-14 shrink-0">신고 기여</span>
+                          <div className="flex-1 bg-orange-100 rounded-full h-1.5">
+                            <div className="bg-orange-400 h-1.5 rounded-full" style={{ width: `${d.reportScore * 100}%` }} />
+                          </div>
+                          <span className="text-xs font-bold text-orange-600 w-8 text-right">{Math.round(d.reportScore * 100)}%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-14 shrink-0">종합 위험</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                            <div className="bg-gray-400 h-1.5 rounded-full" style={{ width: `${d.composite * 100}%` }} />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-600 w-8 text-right">{Math.round(d.composite * 100)}%</span>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${riskColor[d.risk]}`}>
+                        {riskLabel[d.risk]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ③ 오늘의 모델 입력값 평균 */}
+            <h3 className="text-xs font-semibold text-gray-600 mb-3">오늘의 모델 입력값 (31개 시·군 평균)</h3>
+            <div className="flex flex-col gap-2.5">
+              {[
+                { label: '강수량', weight: '55%', score: avgRainfall, color: 'bg-blue-400' },
+                { label: '구조 취약성', weight: '30%', score: avgVuln, color: 'bg-purple-400' },
+                { label: '시민 신고', weight: '15%', score: avgReport, color: 'bg-orange-400' },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 w-28 shrink-0">
+                    <span className="text-xs text-gray-600">{item.label}</span>
+                    <span className="text-xs text-gray-400">({item.weight})</span>
+                  </div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div className={`${item.color} h-2 rounded-full transition-all duration-500`} style={{ width: `${item.score * 100}%` }} />
+                  </div>
+                  <span className="text-xs font-semibold text-gray-700 w-8 text-right">{Math.round(item.score * 100)}%</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

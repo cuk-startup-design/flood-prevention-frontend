@@ -7,12 +7,14 @@ import { supabase } from '@/lib/supabase'
 
 type Role = 'user' | 'admin'
 
-const SEOUL_DISTRICTS = [
-  '강남구', '강동구', '강북구', '강서구', '관악구',
-  '광진구', '구로구', '금천구', '노원구', '도봉구',
-  '동대문구', '동작구', '마포구', '서대문구', '서초구',
-  '성동구', '성북구', '송파구', '양천구', '영등포구',
-  '용산구', '은평구', '종로구', '중구', '중랑구',
+const GYEONGGI_SIGUN = [
+  '수원시', '성남시', '의정부시', '안양시', '부천시',
+  '광명시', '평택시', '동두천시', '안산시', '고양시',
+  '과천시', '구리시', '남양주시', '오산시', '시흥시',
+  '군포시', '의왕시', '하남시', '용인시', '파주시',
+  '이천시', '안성시', '김포시', '화성시', '광주시',
+  '양주시', '포천시', '여주시', '연천군', '가평군',
+  '양평군',
 ]
 
 export default function SignupPage() {
@@ -104,8 +106,8 @@ export default function SignupPage() {
             onChange={(e) => setDistrict(e.target.value)}
             className="border border-gray-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 bg-white text-gray-700"
           >
-            <option value="" disabled>거주 지역 (서울시 구 선택)</option>
-            {SEOUL_DISTRICTS.map((d) => (
+            <option value="" disabled>거주 지역 (경기도 시/군 선택)</option>
+            {GYEONGGI_SIGUN.map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useUserStore } from '@/store/userStore'
 import ReportCompleteModal from './ReportCompleteModal'
@@ -41,38 +41,29 @@ const categoryStyle: Record<Category, string> = {
 
 const categories: Category[] = ['위험 징후', '주의 징후', '기타']
 
-const DISTRICT_CENTERS = [
-  { name: '강남구', lat: 37.5172, lng: 127.0473 },
-  { name: '강동구', lat: 37.5301, lng: 127.1238 },
-  { name: '강북구', lat: 37.6396, lng: 127.0257 },
-  { name: '강서구', lat: 37.5509, lng: 126.8495 },
-  { name: '관악구', lat: 37.4784, lng: 126.9516 },
-  { name: '광진구', lat: 37.5384, lng: 127.0823 },
-  { name: '구로구', lat: 37.4955, lng: 126.8875 },
-  { name: '금천구', lat: 37.4568, lng: 126.8955 },
-  { name: '노원구', lat: 37.6544, lng: 127.0563 },
-  { name: '도봉구', lat: 37.6688, lng: 127.0471 },
-  { name: '동대문구', lat: 37.5744, lng: 127.0396 },
-  { name: '동작구', lat: 37.5124, lng: 126.9393 },
-  { name: '마포구', lat: 37.5637, lng: 126.9084 },
-  { name: '서대문구', lat: 37.5791, lng: 126.9368 },
-  { name: '서초구', lat: 37.4836, lng: 127.0327 },
-  { name: '성동구', lat: 37.5633, lng: 127.0371 },
-  { name: '성북구', lat: 37.5894, lng: 127.0167 },
-  { name: '송파구', lat: 37.5145, lng: 127.1059 },
-  { name: '양천구', lat: 37.517, lng: 126.8664 },
-  { name: '영등포구', lat: 37.5264, lng: 126.8963 },
-  { name: '용산구', lat: 37.5311, lng: 126.981 },
-  { name: '은평구', lat: 37.6026, lng: 126.9291 },
-  { name: '종로구', lat: 37.5735, lng: 126.979 },
-  { name: '중구', lat: 37.564, lng: 126.9975 },
-  { name: '중랑구', lat: 37.6063, lng: 127.0927 },
+const GYEONGGI_SIGUN = [
+  { name: '수원시',  lat: 37.2636, lng: 127.0286 }, { name: '성남시',  lat: 37.4449, lng: 127.1389 },
+  { name: '의정부시', lat: 37.7381, lng: 127.0339 }, { name: '안양시',  lat: 37.3943, lng: 126.9568 },
+  { name: '부천시',  lat: 37.5035, lng: 126.7660 }, { name: '광명시',  lat: 37.4786, lng: 126.8643 },
+  { name: '평택시',  lat: 36.9921, lng: 127.1128 }, { name: '동두천시', lat: 37.9035, lng: 127.0600 },
+  { name: '안산시',  lat: 37.3236, lng: 126.8219 }, { name: '고양시',  lat: 37.6584, lng: 126.8320 },
+  { name: '과천시',  lat: 37.4292, lng: 126.9874 }, { name: '구리시',  lat: 37.5943, lng: 127.1298 },
+  { name: '남양주시', lat: 37.6358, lng: 127.2165 }, { name: '오산시',  lat: 37.1498, lng: 127.0772 },
+  { name: '시흥시',  lat: 37.3800, lng: 126.8029 }, { name: '군포시',  lat: 37.3613, lng: 126.9350 },
+  { name: '의왕시',  lat: 37.3449, lng: 126.9681 }, { name: '하남시',  lat: 37.5397, lng: 127.2148 },
+  { name: '용인시',  lat: 37.2410, lng: 127.1775 }, { name: '파주시',  lat: 37.7599, lng: 126.7800 },
+  { name: '이천시',  lat: 37.2723, lng: 127.4353 }, { name: '안성시',  lat: 37.0079, lng: 127.2797 },
+  { name: '김포시',  lat: 37.6148, lng: 126.7157 }, { name: '화성시',  lat: 37.1996, lng: 126.8314 },
+  { name: '광주시',  lat: 37.4295, lng: 127.2554 }, { name: '양주시',  lat: 37.7852, lng: 127.0456 },
+  { name: '포천시',  lat: 37.8946, lng: 127.2003 }, { name: '여주시',  lat: 37.2983, lng: 127.6376 },
+  { name: '연천군',  lat: 38.0969, lng: 127.0750 }, { name: '가평군',  lat: 37.8311, lng: 127.5097 },
+  { name: '양평군',  lat: 37.4919, lng: 127.4875 },
 ]
 
-function nearestDistrict(lat: number, lng: number) {
-  let nearest = DISTRICT_CENTERS[0]
+function nearestSigun(lat: number, lng: number) {
+  let nearest = GYEONGGI_SIGUN[0]
   let minDist = Infinity
-  for (const d of DISTRICT_CENTERS) {
+  for (const d of GYEONGGI_SIGUN) {
     const dist = (d.lat - lat) ** 2 + (d.lng - lng) ** 2
     if (dist < minDist) { minDist = dist; nearest = d }
   }
@@ -84,7 +75,37 @@ export default function ChecklistModal({ photoUrl, file, lat, lng, onClose }: Pr
   const [reportId, setReportId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [areaRisk, setAreaRisk] = useState<'low' | 'medium' | 'high' | null>(null)
+  const [areaSigun, setAreaSigun] = useState<string | null>(null)
+  const [photoAnalysis, setPhotoAnalysis] = useState<{ risk: string; label: string; reason: string; suggestedIds: number[] } | null>(null)
+  const [analyzing, setAnalyzing] = useState(true)
   const { user } = useUserStore()
+
+  useEffect(() => {
+    if (!lat || !lng) return
+    fetch(`/api/rainfall?lat=${lat}&lng=${lng}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.risk) setAreaRisk(data.risk)
+        if (data.sigun) setAreaSigun(data.sigun)
+      })
+      .catch(() => {})
+  }, [lat, lng])
+
+  useEffect(() => {
+    const form = new FormData()
+    form.append('image', file)
+    fetch('/api/analyze-photo', { method: 'POST', body: form })
+      .then((r) => r.json())
+      .then((data) => {
+        setPhotoAnalysis(data)
+        if (data.suggestedIds?.length > 0) {
+          setSelected(new Set(data.suggestedIds))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAnalyzing(false))
+  }, [file])
 
   const toggle = (id: number) => {
     setSelected((prev) => {
@@ -117,7 +138,7 @@ export default function ChecklistModal({ photoUrl, file, lat, lng, onClose }: Pr
     photoStorageUrl = publicUrl
 
     // 신고 저장
-    const district = lat && lng ? nearestDistrict(lat, lng) : null
+    const district = lat && lng ? nearestSigun(lat, lng) : null
     const checklistItems = Array.from(selected).map((id) => items.find((i) => i.id === id)!.title)
     const { error: insertError } = await supabase
       .from('reports')
@@ -163,6 +184,50 @@ export default function ChecklistModal({ photoUrl, file, lat, lng, onClose }: Pr
           <p className="text-xs text-gray-400 mt-0.5">해당하는 항목을 모두 선택해주세요</p>
         </div>
       </div>
+
+      {/* AI 사진 분석 결과 */}
+      {analyzing ? (
+        <div className="px-4 py-3 flex items-center gap-2.5 bg-blue-50 border-b border-blue-100 shrink-0">
+          <span className="text-base">🤖</span>
+          <p className="text-xs text-blue-600 font-medium">AI가 사진을 분석하고 있어요...</p>
+        </div>
+      ) : photoAnalysis && photoAnalysis.risk !== 'none' && photoAnalysis.risk !== 'low' && (
+        <div className={`px-4 py-3 flex items-start gap-2.5 shrink-0 border-b ${
+          photoAnalysis.risk === 'high' ? 'bg-red-50 border-red-100' : 'bg-yellow-50 border-yellow-100'
+        }`}>
+          <span className="text-base mt-0.5">🤖</span>
+          <div className="flex-1">
+            <p className={`text-xs font-bold mb-0.5 ${photoAnalysis.risk === 'high' ? 'text-red-700' : 'text-yellow-700'}`}>
+              AI 사진 분석 — {photoAnalysis.label}
+            </p>
+            <p className={`text-xs ${photoAnalysis.risk === 'high' ? 'text-red-600' : 'text-yellow-600'}`}>
+              {photoAnalysis.reason}
+            </p>
+            {photoAnalysis.suggestedIds?.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">관련 항목 {photoAnalysis.suggestedIds.length}개를 자동으로 선택했어요</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI 위험도 기반 추천 배너 */}
+      {areaRisk && areaRisk !== 'low' && (
+        <div className={`px-4 py-3 flex items-start gap-2.5 shrink-0 border-b ${
+          areaRisk === 'high' ? 'bg-red-50 border-red-100' : 'bg-yellow-50 border-yellow-100'
+        }`}>
+          <span className="text-base mt-0.5">📍</span>
+          <div>
+            <p className={`text-xs font-bold mb-0.5 ${areaRisk === 'high' ? 'text-red-700' : 'text-yellow-700'}`}>
+              현재 위치 위험도 — {areaSigun} {areaRisk === 'high' ? '높음' : '보통'}
+            </p>
+            <p className={`text-xs ${areaRisk === 'high' ? 'text-red-600' : 'text-yellow-600'}`}>
+              {areaRisk === 'high'
+                ? '위험 징후 항목을 우선 확인하고 즉시 신고해주세요.'
+                : '주의 징후 항목을 확인해 조기 대응해주세요.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 체크리스트 */}
       <div className="flex-1 overflow-y-auto">
