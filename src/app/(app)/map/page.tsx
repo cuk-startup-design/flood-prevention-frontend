@@ -94,10 +94,11 @@ export default function MapPage() {
       })
 
       geoDataRef.current.features.forEach((feature: KakaoAny) => {
-        const name: string = feature.properties.name
-        const detail = districtRisksRef.current[name]
+        const rawName: string = feature.properties.name ?? ''
+        const sigunName = rawName.split(' ')[0]
+        const detail = districtRisksRef.current[sigunName] ?? districtRisksRef.current[rawName]
         const risk: RiskLevel = detail?.risk ?? 'low'
-        const config = RISK_CONFIG[risk]
+        const config = RISK_CONFIG[risk] ?? RISK_CONFIG['low']
         const { type, coordinates } = feature.geometry
 
         const toLatLng = (ring: number[][]) =>
@@ -133,7 +134,7 @@ export default function MapPage() {
             new window.kakao.maps.CustomOverlay({
               map,
               position: new window.kakao.maps.LatLng(centerLat, centerLng),
-              content: `<span style="font-size:10px;font-weight:700;color:#111827;text-shadow:0 0 3px white,0 0 3px white;pointer-events:none;">${name}</span>`,
+              content: `<span style="font-size:10px;font-weight:700;color:#111827;text-shadow:0 0 3px white,0 0 3px white;pointer-events:none;">${sigunName}</span>`,
               yAnchor: 0.5,
             })
 
@@ -144,8 +145,8 @@ export default function MapPage() {
               polygon.setOptions({ fillOpacity: 0.45 })
             })
             window.kakao.maps.event.addListener(polygon, 'click', () => {
-              const d = districtRisksRef.current[name]
-              if (d) setSelectedDistrict({ name, ...d })
+              const d = districtRisksRef.current[sigunName]
+              if (d) setSelectedDistrict({ name: sigunName, ...d })
             })
           }
         })
